@@ -1,13 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import TransactionsTable from "@/components/TransactionsTable";
 import { Badge } from "@/components/ui/badge";
-import { Search, X } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, X, Calendar, TrendingUp, BookOpen, RotateCcw, AlertCircle, Users } from "lucide-react";
+import { format, startOfDay, startOfWeek, startOfMonth, isAfter, isBefore, isWithinInterval } from "date-fns";
+
+type DateRange = 'today' | 'week' | 'month' | 'all';
 
 export default function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>('all');
 
   // TODO: remove mock functionality - replace with real data from IndexedDB
   const transactions = [
@@ -103,21 +108,240 @@ export default function Transactions() {
     },
   ];
 
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = 
-      transaction.bookTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.studentName.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = !statusFilter || transaction.status === statusFilter;
+  const getDateRangeStart = () => {
+    const now = new Date();
+    switch (dateRange) {
+      case 'today':
+        return startOfDay(now);
+      case 'week':
+        return startOfWeek(now);
+      case 'month':
+        return startOfMonth(now);
+      case 'all':
+      default:
+        return new Date(0);
+    }
+  };
 
-    return matchesSearch && matchesStatus;
-  });
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      const matchesSearch = 
+        transaction.bookTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        transaction.studentName.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = !statusFilter || transaction.status === statusFilter;
+
+      const rangeStart = getDateRangeStart();
+      const matchesDate = isAfter(transaction.date, rangeStart) || transaction.date.getTime() === rangeStart.getTime();
+
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [searchQuery, statusFilter, dateRange, transactions]);
+
+  const analytics = useMemo(() => {
+    const rangeStart = getDateRangeStart();
+    const inRangeTransactions = transactions.filter(t => 
+      isAfter(t.date, rangeStart) || t.date.getTime() === rangeStart.getTime()
+    );
+
+    const checkouts = inRangeTransactions.filter(t => t.action === 'borrow').length;
+    const returns = inRangeTransactions.filter(t => t.action === 'return').length;
+    const activeLoans = transactions.filter(t => t.status === 'active').length;
+    const overdueItems = transactions.filter(t => t.status === 'overdue').length;
+
+    const bookCounts = inRangeTransactions.reduce((acc, t) => {
+      if (t.action === 'borrow') {
+        acc[t.bookTitle] = (acc[t.bookTitle] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    const topBooks = Object.entries(bookCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    const studentCounts = inRangeTransactions.reduce((acc, t) => {
+      if (t.action === 'borrow') {
+        acc[t.studentName] = (acc[t.studentName] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    const activeStudents = Object.keys(studentCounts).length;
+
+    return {
+      checkouts,
+      returns,
+      activeLoans,
+      overdueItems,
+      topBooks,
+      activeStudents,
+    };
+  }, [dateRange, transactions]);
+
+  const dateRangeLabel = {
+    today: 'Today',
+    week: 'This Week',
+    month: 'This Month',
+    all: 'All Time',
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold">Transaction History</h2>
-        <p className="text-muted-foreground mt-1">View all borrowing and return activities</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">Transaction History & Reports</h2>
+          <p className="text-muted-foreground mt-1">View activity and generate summaries</p>
+        </div>
+      </div>
+
+      <div className="flex gap-2 items-center flex-wrap">
+        <span className="text-sm text-muted-foreground">Period:</span>
+        <Badge 
+          variant={dateRange === 'today' ? 'default' : 'outline'} 
+          className="cursor-pointer hover-elevate"
+          onClick={() => setDateRange('today')}
+          data-testid="period-today"
+        >
+          <Calendar className="w-3 h-3 mr-1" />
+          Today
+        </Badge>
+        <Badge 
+          variant={dateRange === 'week' ? 'default' : 'outline'} 
+          className="cursor-pointer hover-elevate"
+          onClick={() => setDateRange('week')}
+          data-testid="period-week"
+        >
+          <Calendar className="w-3 h-3 mr-1" />
+          This Week
+        </Badge>
+        <Badge 
+          variant={dateRange === 'month' ? 'default' : 'outline'} 
+          className="cursor-pointer hover-elevate"
+          onClick={() => setDateRange('month')}
+          data-testid="period-month"
+        >
+          <Calendar className="w-3 h-3 mr-1" />
+          This Month
+        </Badge>
+        <Badge 
+          variant={dateRange === 'all' ? 'default' : 'outline'} 
+          className="cursor-pointer hover-elevate"
+          onClick={() => setDateRange('all')}
+          data-testid="period-all"
+        >
+          All Time
+        </Badge>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Checkouts</CardTitle>
+            <BookOpen className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="stat-checkouts">{analytics.checkouts}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {dateRangeLabel[dateRange]}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Returns</CardTitle>
+            <RotateCcw className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="stat-returns">{analytics.returns}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {dateRangeLabel[dateRange]}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Loans</CardTitle>
+            <TrendingUp className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="stat-active">{analytics.activeLoans}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Currently borrowed
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <AlertCircle className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600" data-testid="stat-overdue">{analytics.overdueItems}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Require attention
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Most Borrowed Books</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analytics.topBooks.length > 0 ? (
+              <div className="space-y-3">
+                {analytics.topBooks.map(([title, count], index) => (
+                  <div key={title} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-muted-foreground w-4">#{index + 1}</span>
+                      <span className="text-sm font-medium">{title}</span>
+                    </div>
+                    <Badge variant="secondary">{count} checkouts</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No data for this period</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Activity Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Active Students</span>
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold">{analytics.activeStudents}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Return Rate</span>
+                <span className="text-sm font-semibold">
+                  {analytics.checkouts > 0 
+                    ? Math.round((analytics.returns / analytics.checkouts) * 100) 
+                    : 0}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Net Checkouts</span>
+                <span className="text-sm font-semibold">
+                  {analytics.checkouts - analytics.returns}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex gap-4 items-center flex-wrap">
@@ -134,7 +358,7 @@ export default function Transactions() {
         </div>
 
         <div className="flex gap-2 items-center">
-          <span className="text-sm text-muted-foreground">Filter:</span>
+          <span className="text-sm text-muted-foreground">Status:</span>
           <Badge 
             variant={statusFilter === 'active' ? 'default' : 'outline'} 
             className="cursor-pointer hover-elevate"
