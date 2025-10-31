@@ -26,6 +26,7 @@ export default function BooksTable({ books, onEdit, onView }: BooksTableProps) {
             <TableHead className="font-semibold">Barcode</TableHead>
             <TableHead className="font-semibold">Title</TableHead>
             <TableHead className="font-semibold">Category</TableHead>
+            <TableHead className="font-semibold">Grade</TableHead>
             <TableHead className="font-semibold text-right">Total Qty</TableHead>
             <TableHead className="font-semibold text-right">Available</TableHead>
             <TableHead className="font-semibold">Status</TableHead>
@@ -35,7 +36,7 @@ export default function BooksTable({ books, onEdit, onView }: BooksTableProps) {
         <TableBody>
           {books.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+              <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                 No books found
               </TableCell>
             </TableRow>
@@ -47,6 +48,7 @@ export default function BooksTable({ books, onEdit, onView }: BooksTableProps) {
                 <TableCell>
                   <Badge variant="secondary" className="text-xs">{book.category}</Badge>
                 </TableCell>
+                <TableCell className="text-sm text-muted-foreground">{book.grade || '—'}</TableCell>
                 <TableCell className="text-right">{book.totalQuantity}</TableCell>
                 <TableCell className="text-right font-medium">{book.availableQuantity}</TableCell>
                 <TableCell>

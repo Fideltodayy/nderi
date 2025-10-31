@@ -5,6 +5,7 @@ export interface Book {
   barcode: string;
   title: string;
   category: string;
+  grade?: string;
   quantityPurchased: number;
   quantityDonated: number;
   totalQuantity: number;

@@ -7,8 +7,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Upload, FileSpreadsheet } from "lucide-react";
+import { Upload, FileSpreadsheet, Info } from "lucide-react";
 import Papa from "papaparse";
+import { Card } from "@/components/ui/card";
 
 interface CSVImportDialogProps {
   open: boolean;
@@ -65,13 +66,33 @@ export default function CSVImportDialog({ open, onOpenChange, onImport }: CSVImp
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[700px]" data-testid="dialog-csv-import">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto" data-testid="dialog-csv-import">
         <DialogHeader>
           <DialogTitle>Import Books from CSV/Excel</DialogTitle>
           <DialogDescription>
             Upload a CSV or Excel file with book information
           </DialogDescription>
         </DialogHeader>
+
+        <Card className="p-4 bg-muted/50">
+          <div className="flex gap-2 items-start">
+            <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+            <div className="space-y-2 text-sm">
+              <p className="font-semibold">Required CSV Format:</p>
+              <p className="text-muted-foreground">Your CSV file should contain the following columns:</p>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Title</span> - Book title</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Category</span> - Subject category (e.g., ENGLISH CLASS READERS, ORAL LITERATURE, ENGLISH, POETRY, KISWAHILI)</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Grade</span> - Grade level (e.g., Grade 7, Grade 8, Grade 9)</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Quantities Purchased</span> - Number of purchased copies</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Donated</span> - Number of donated copies</li>
+              </ul>
+              <p className="text-muted-foreground mt-2">
+                Example row: "Strange Happenings, ENGLISH CLASS READERS, Grade 7, 15, 0"
+              </p>
+            </div>
+          </div>
+        </Card>
 
         <div className="space-y-4 py-4">
           <div
@@ -120,7 +141,7 @@ export default function CSVImportDialog({ open, onOpenChange, onImport }: CSVImp
                   <thead className="bg-muted">
                     <tr>
                       {Object.keys(preview[0]).map((key) => (
-                        <th key={key} className="text-left p-2 font-semibold border-b">
+                        <th key={key} className="text-left p-2 font-semibold border-b whitespace-nowrap">
                           {key}
                         </th>
                       ))}
@@ -130,7 +151,7 @@ export default function CSVImportDialog({ open, onOpenChange, onImport }: CSVImp
                     {preview.map((row, idx) => (
                       <tr key={idx} className="border-b">
                         {Object.values(row).map((value: any, cellIdx) => (
-                          <td key={cellIdx} className="p-2">
+                          <td key={cellIdx} className="p-2 whitespace-nowrap">
                             {value}
                           </td>
                         ))}
