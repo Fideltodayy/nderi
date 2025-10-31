@@ -5,7 +5,8 @@ import TransactionsTable from "@/components/TransactionsTable";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, X, Calendar, TrendingUp, BookOpen, RotateCcw, AlertCircle, Users } from "lucide-react";
-import { format, startOfDay, startOfWeek, startOfMonth, isAfter, isBefore, isWithinInterval } from "date-fns";
+import { startOfDay, startOfWeek, startOfMonth, isAfter } from "date-fns";
+import { useTransactions } from "@/hooks/useTransactions";
 
 type DateRange = 'today' | 'week' | 'month' | 'all';
 
@@ -13,100 +14,32 @@ export default function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('all');
+  
+  const { data: transactionsData = [], isLoading } = useTransactions();
 
-  // TODO: remove mock functionality - replace with real data from IndexedDB
-  const transactions = [
-    {
-      id: 1,
-      bookTitle: 'Strange Happenings',
-      studentName: 'John Doe',
-      action: 'borrow' as const,
-      date: new Date('2025-10-30T10:30:00'),
-      dueDate: new Date('2025-11-13'),
-      status: 'active' as const,
-    },
-    {
-      id: 2,
-      bookTitle: 'The last laugh',
-      studentName: 'Jane Smith',
-      action: 'return' as const,
-      date: new Date('2025-10-30T09:15:00'),
-      returnDate: new Date('2025-10-30'),
-      status: 'returned' as const,
-    },
-    {
-      id: 3,
-      bookTitle: 'Master English 7',
-      studentName: 'Bob Wilson',
-      action: 'borrow' as const,
-      date: new Date('2025-10-29T14:20:00'),
-      dueDate: new Date('2025-11-12'),
-      status: 'active' as const,
-    },
-    {
-      id: 4,
-      bookTitle: 'Poetry Simplified',
-      studentName: 'Alice Brown',
-      action: 'return' as const,
-      date: new Date('2025-10-29T11:45:00'),
-      returnDate: new Date('2025-10-29'),
-      status: 'returned' as const,
-    },
-    {
-      id: 5,
-      bookTitle: 'Oxford Dictionaries',
-      studentName: 'Charlie Davis',
-      action: 'borrow' as const,
-      date: new Date('2025-10-28T16:00:00'),
-      dueDate: new Date('2025-11-11'),
-      status: 'active' as const,
-    },
-    {
-      id: 6,
-      bookTitle: 'The Good Earth',
-      studentName: 'Frank Garcia',
-      action: 'borrow' as const,
-      date: new Date('2025-10-15T10:00:00'),
-      dueDate: new Date('2025-10-29'),
-      status: 'overdue' as const,
-    },
-    {
-      id: 7,
-      bookTitle: 'Bridges without rivers',
-      studentName: 'Diana Evans',
-      action: 'return' as const,
-      date: new Date('2025-10-27T15:30:00'),
-      returnDate: new Date('2025-10-27'),
-      status: 'returned' as const,
-    },
-    {
-      id: 8,
-      bookTitle: 'Master English 8',
-      studentName: 'Grace Harris',
-      action: 'borrow' as const,
-      date: new Date('2025-10-26T11:00:00'),
-      dueDate: new Date('2025-11-09'),
-      status: 'active' as const,
-    },
-    {
-      id: 9,
-      bookTitle: 'Understanding oral literature by Austin Bukenya',
-      studentName: 'Henry Jackson',
-      action: 'return' as const,
-      date: new Date('2025-10-25T14:15:00'),
-      returnDate: new Date('2025-10-25'),
-      status: 'returned' as const,
-    },
-    {
-      id: 10,
-      bookTitle: 'Oxford Head start oral literature',
-      studentName: 'Ivy King',
-      action: 'borrow' as const,
-      date: new Date('2025-10-20T09:30:00'),
-      dueDate: new Date('2025-11-03'),
-      status: 'active' as const,
-    },
-  ];
+  const transactions = useMemo(() => {
+    // Check for overdue items
+    const now = new Date();
+    return transactionsData.map(t => {
+      const date = new Date(t.date);
+      const dueDate = t.dueDate ? new Date(t.dueDate) : undefined;
+      const returnDate = t.returnDate ? new Date(t.returnDate) : undefined;
+      
+      // Determine if the transaction is overdue
+      let status = t.status;
+      if (t.action === 'borrow' && status === 'active' && dueDate && now > dueDate) {
+        status = 'overdue';
+      }
+      
+      return {
+        ...t,
+        date,
+        dueDate,
+        returnDate,
+        status,
+      };
+    });
+  }, [transactionsData]);
 
   const getDateRangeStart = () => {
     const now = new Date();

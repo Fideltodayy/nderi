@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,54 +12,96 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Barcode, User, Calendar } from "lucide-react";
 import { Book, Student } from "@/lib/db";
+import { useBooks } from "@/hooks/useBooks";
+import { useStudents } from "@/hooks/useStudents";
+import { useAddTransaction } from "@/hooks/useTransactions";
+import { useToast } from "@/hooks/use-toast";
+import { addDays } from "date-fns";
 
 interface CheckOutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm?: (bookId: number, studentId: number, dueDate: Date) => void;
 }
 
-export default function CheckOutDialog({ open, onOpenChange, onConfirm }: CheckOutDialogProps) {
+export default function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [barcode, setBarcode] = useState("");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [studentSearch, setStudentSearch] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [dueDate, setDueDate] = useState("");
+  
+  const { data: books = [] } = useBooks();
+  const { data: students = [] } = useStudents();
+  const addTransaction = useAddTransaction();
+  const { toast } = useToast();
+  
+  // Set default due date to 14 days from now
+  const defaultDueDate = useMemo(() => {
+    return addDays(new Date(), 14).toISOString().split('T')[0];
+  }, []);
 
   const handleBarcodeSubmit = () => {
-    // Mock book lookup
-    const mockBook: Book = {
-      id: 1,
-      barcode: barcode,
-      title: "Strange Happenings",
-      category: "ENGLISH CLASS READERS",
-      quantityPurchased: 15,
-      quantityDonated: 0,
-      totalQuantity: 15,
-      availableQuantity: 12
-    };
-    setSelectedBook(mockBook);
-    setStep(2);
-    console.log('Book found:', mockBook);
+    const book = books.find(b => b.barcode === barcode);
+    if (book) {
+      if (book.availableQuantity > 0) {
+        setSelectedBook(book);
+        setDueDate(defaultDueDate);
+        setStep(2);
+      } else {
+        toast({
+          title: "Book Unavailable",
+          description: "All copies of this book are currently checked out",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "Book Not Found",
+        description: `No book found with barcode: ${barcode}`,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleStudentSelect = () => {
-    const mockStudent: Student = {
-      id: 1,
-      studentId: "S001",
-      name: "John Doe",
-      class: "Grade 7"
-    };
-    setSelectedStudent(mockStudent);
-    console.log('Student selected:', mockStudent);
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch) return [];
+    const search = studentSearch.toLowerCase();
+    return students.filter(s => 
+      s.name.toLowerCase().includes(search) ||
+      s.studentId.toLowerCase().includes(search)
+    ).slice(0, 5);
+  }, [students, studentSearch]);
+
+  const handleStudentSelect = (student: Student) => {
+    setSelectedStudent(student);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (selectedBook && selectedStudent && dueDate) {
-      console.log('Check out confirmed:', { book: selectedBook, student: selectedStudent, dueDate });
-      onConfirm?.(selectedBook.id!, selectedStudent.id!, new Date(dueDate));
-      handleClose();
+      try {
+        await addTransaction.mutateAsync({
+          bookId: selectedBook.id!,
+          studentId: selectedStudent.id!,
+          action: 'borrow',
+          date: new Date(),
+          dueDate: new Date(dueDate),
+          status: 'active',
+        });
+        
+        toast({
+          title: "Book Checked Out",
+          description: `${selectedBook.title} checked out to ${selectedStudent.name}`,
+        });
+        
+        handleClose();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to check out book",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -131,22 +173,34 @@ export default function CheckOutDialog({ open, onOpenChange, onConfirm }: CheckO
 
               <div className="space-y-2">
                 <Label htmlFor="student">Student</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input
-                      id="student"
-                      placeholder="Search student by name or ID..."
-                      className="pl-10"
-                      value={studentSearch}
-                      onChange={(e) => setStudentSearch(e.target.value)}
-                      data-testid="input-student-search"
-                    />
-                  </div>
-                  <Button onClick={handleStudentSelect} data-testid="button-select-student">
-                    Select
-                  </Button>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    id="student"
+                    placeholder="Search student by name or ID..."
+                    className="pl-10"
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    data-testid="input-student-search"
+                  />
                 </div>
+                {filteredStudents.length > 0 && !selectedStudent && (
+                  <div className="border rounded-md max-h-48 overflow-y-auto">
+                    {filteredStudents.map(student => (
+                      <button
+                        key={student.id}
+                        onClick={() => handleStudentSelect(student)}
+                        className="w-full text-left px-4 py-2 hover-elevate"
+                        data-testid={`student-option-${student.id}`}
+                      >
+                        <p className="font-medium">{student.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {student.studentId} • {student.class}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {selectedStudent && (

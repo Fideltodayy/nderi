@@ -1,54 +1,95 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import BooksTable from "@/components/BooksTable";
 import CSVImportDialog from "@/components/CSVImportDialog";
+import AddBookDialog from "@/components/AddBookDialog";
 import { Search, Plus, Upload } from "lucide-react";
-import { Book } from "@/lib/db";
+import { useBooks, useBulkAddBooks } from "@/hooks/useBooks";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Catalog() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
-
-  // TODO: remove mock functionality - replace with real data from IndexedDB
-  const [books] = useState<Book[]>([
-    { id: 1, barcode: '001', title: 'Strange Happenings', category: 'ENGLISH CLASS READERS', grade: 'Grade 7', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 12 },
-    { id: 2, barcode: '002', title: 'The last laugh', category: 'ENGLISH CLASS READERS', grade: 'Grade 7', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 15 },
-    { id: 3, barcode: '003', title: 'The Good Earth', category: 'ENGLISH CLASS READERS', grade: 'Grade 8', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 10 },
-    { id: 4, barcode: '004', title: 'Bridges without rivers', category: 'ENGLISH CLASS READERS', grade: 'Grade 8', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 15 },
-    { id: 5, barcode: '005', title: 'The hidden package', category: 'ENGLISH CLASS READERS', grade: 'Grade 9', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 14 },
-    { id: 6, barcode: '006', title: 'Understanding oral literature by Austin Bukenya', category: 'ORAL LITERATURE', grade: 'Grade 8', quantityPurchased: 0, quantityDonated: 8, totalQuantity: 8, availableQuantity: 6 },
-    { id: 7, barcode: '007', title: 'Oxford Head start oral literature and skills', category: 'ORAL LITERATURE', grade: 'Grade 7', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-    { id: 8, barcode: '008', title: 'Master English 7', category: 'ENGLISH', grade: 'Grade 7', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 5 },
-    { id: 9, barcode: '009', title: 'Master English 8', category: 'ENGLISH', grade: 'Grade 8', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 7 },
-    { id: 10, barcode: '010', title: 'Master English 9', category: 'ENGLISH', grade: 'Grade 9', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-    { id: 11, barcode: '011', title: 'Poetry Simplified: A guide to oral and literacy skills', category: 'POETRY', grade: 'Grade 7', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 6 },
-    { id: 12, barcode: '012', title: 'A poetry course for KCSE by Paul Robin', category: 'POETRY', grade: 'Grade 9', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-    { id: 13, barcode: '013', title: 'Miradi na Mtihani', category: 'KISWAHILI', grade: 'Grade 7', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 7 },
-    { id: 14, barcode: '014', title: 'Maana Mapya', category: 'KISWAHILI', grade: 'Grade 8', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-  ]);
+  
+  const { data: books = [], isLoading } = useBooks();
+  const bulkAddBooks = useBulkAddBooks();
+  const { toast } = useToast();
 
   const grades = ['Grade 7', 'Grade 8', 'Grade 9'];
 
-  const filteredBooks = books.filter(book => {
-    const matchesSearch = 
-      book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      book.barcode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      book.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesGrade = !selectedGrade || book.grade === selectedGrade;
-    
-    return matchesSearch && matchesGrade;
-  });
+  const filteredBooks = useMemo(() => {
+    return books.filter(book => {
+      const matchesSearch = 
+        book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        book.barcode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        book.category.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesGrade = !selectedGrade || book.grade === selectedGrade;
+      
+      return matchesSearch && matchesGrade;
+    });
+  }, [books, searchQuery, selectedGrade]);
 
-  const booksByGrade = grades.map(grade => ({
-    grade,
-    books: filteredBooks.filter(book => book.grade === grade),
-    totalBooks: books.filter(book => book.grade === grade).reduce((sum, book) => sum + book.totalQuantity, 0),
-    available: books.filter(book => book.grade === grade).reduce((sum, book) => sum + book.availableQuantity, 0),
-  }));
+  const booksByGrade = useMemo(() => {
+    return grades.map(grade => ({
+      grade,
+      books: filteredBooks.filter(book => book.grade === grade),
+      totalBooks: books.filter(book => book.grade === grade).reduce((sum, book) => sum + book.totalQuantity, 0),
+      available: books.filter(book => book.grade === grade).reduce((sum, book) => sum + book.availableQuantity, 0),
+    }));
+  }, [books, filteredBooks, grades]);
+
+  const handleImport = async (data: any[]) => {
+    try {
+      const nextBarcode = books.length > 0 
+        ? Math.max(...books.map(b => parseInt(b.barcode) || 0)) + 1
+        : 1;
+
+      const newBooks = data.map((row, index) => {
+        const purchased = parseInt(row['Quantities Purchased']) || 0;
+        const donated = parseInt(row['Donated']) || 0;
+        const total = purchased + donated;
+
+        return {
+          barcode: String(nextBarcode + index).padStart(3, '0'),
+          title: row['Title'] || '',
+          category: row['Category'] || '',
+          grade: row['Grade'] || '',
+          quantityPurchased: purchased,
+          quantityDonated: donated,
+          totalQuantity: total,
+          availableQuantity: total,
+        };
+      });
+
+      await bulkAddBooks.mutateAsync(newBooks);
+      
+      toast({
+        title: "Import Successful",
+        description: `Successfully imported ${newBooks.length} books`,
+      });
+      
+      setShowImportDialog(false);
+    } catch (error) {
+      toast({
+        title: "Import Failed",
+        description: "There was an error importing the books",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">Loading catalog...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -60,17 +101,14 @@ export default function Catalog() {
         <div className="flex gap-2">
           <Button 
             variant="secondary"
-            onClick={() => {
-              console.log('Import CSV clicked');
-              setShowImportDialog(true);
-            }}
+            onClick={() => setShowImportDialog(true)}
             data-testid="button-import-csv"
           >
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
           <Button 
-            onClick={() => console.log('Add New Book clicked')}
+            onClick={() => setShowAddDialog(true)}
             data-testid="button-add-book"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -157,7 +195,12 @@ export default function Catalog() {
       <CSVImportDialog
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
-        onImport={(data) => console.log('Import data:', data)}
+        onImport={handleImport}
+      />
+
+      <AddBookDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
       />
     </div>
   );

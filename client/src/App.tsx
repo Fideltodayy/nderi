@@ -89,16 +89,10 @@ function App() {
         <CheckOutDialog 
           open={showCheckOut} 
           onOpenChange={setShowCheckOut}
-          onConfirm={(bookId, studentId, dueDate) => {
-            console.log('Check out:', { bookId, studentId, dueDate });
-          }}
         />
         <ReturnDialog 
           open={showReturn} 
           onOpenChange={setShowReturn}
-          onConfirm={(transactionId) => {
-            console.log('Return:', transactionId);
-          }}
         />
         <Toaster />
       </TooltipProvider>

@@ -11,35 +11,87 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Barcode } from "lucide-react";
+import { useBooks } from "@/hooks/useBooks";
+import { useTransactions, useUpdateTransaction, useAddTransaction } from "@/hooks/useTransactions";
+import { useToast } from "@/hooks/use-toast";
 
 interface ReturnDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm?: (transactionId: number) => void;
 }
 
-export default function ReturnDialog({ open, onOpenChange, onConfirm }: ReturnDialogProps) {
+export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) {
   const [barcode, setBarcode] = useState("");
   const [foundTransaction, setFoundTransaction] = useState<any | null>(null);
+  
+  const { data: books = [] } = useBooks();
+  const { data: transactions = [] } = useTransactions();
+  const updateTransaction = useUpdateTransaction();
+  const addTransaction = useAddTransaction();
+  const { toast } = useToast();
 
-  const handleBarcodeSubmit = () => {
-    // Mock transaction lookup
-    const mockTransaction = {
-      id: 1,
-      bookTitle: "Strange Happenings",
-      studentName: "John Doe",
-      borrowDate: new Date('2025-10-25'),
-      dueDate: new Date('2025-11-08')
-    };
-    setFoundTransaction(mockTransaction);
-    console.log('Transaction found:', mockTransaction);
+  const handleBarcodeSubmit = async () => {
+    const book = books.find(b => b.barcode === barcode);
+    if (!book) {
+      toast({
+        title: "Book Not Found",
+        description: `No book found with barcode: ${barcode}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Find active transaction for this book
+    const activeTransaction = transactions.find(t => 
+      t.bookId === book.id && t.status === 'active'
+    );
+    
+    if (activeTransaction) {
+      setFoundTransaction(activeTransaction);
+    } else {
+      toast({
+        title: "No Active Loan",
+        description: "This book is not currently checked out",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (foundTransaction) {
-      console.log('Return confirmed:', foundTransaction);
-      onConfirm?.(foundTransaction.id);
-      handleClose();
+      try {
+        // Update existing transaction to returned
+        await updateTransaction.mutateAsync({
+          id: foundTransaction.id!,
+          data: {
+            status: 'returned',
+            returnDate: new Date(),
+          }
+        });
+        
+        // Create return transaction record (this automatically increments book availability)
+        await addTransaction.mutateAsync({
+          bookId: foundTransaction.bookId,
+          studentId: foundTransaction.studentId,
+          action: 'return',
+          date: new Date(),
+          status: 'returned',
+          returnDate: new Date(),
+        });
+        
+        toast({
+          title: "Book Returned",
+          description: `${foundTransaction.bookTitle} has been returned`,
+        });
+        
+        handleClose();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to process return",
+          variant: "destructive",
+        });
+      }
     }
   };
 
