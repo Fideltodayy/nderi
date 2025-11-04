@@ -14,11 +14,18 @@ import { Student } from "@/lib/db";
 interface StudentsTableProps {
   students: Student[];
   borrowedCounts?: Record<number, number>;
+  overdueCounts?: Record<number, number>;
   onEdit?: (student: Student) => void;
   onView?: (student: Student) => void;
 }
 
-export default function StudentsTable({ students, borrowedCounts = {}, onEdit, onView }: StudentsTableProps) {
+export default function StudentsTable({ 
+  students, 
+  borrowedCounts = {}, 
+  overdueCounts = {},
+  onEdit, 
+  onView 
+}: StudentsTableProps) {
   return (
     <div className="border rounded-md">
       <Table>
@@ -42,12 +49,23 @@ export default function StudentsTable({ students, borrowedCounts = {}, onEdit, o
           ) : (
             students.map((student) => {
               const borrowedCount = borrowedCounts[student.id!] || 0;
+              const overdueCount = overdueCounts[student.id!] || 0;
               return (
                 <TableRow key={student.id} className="hover-elevate" data-testid={`row-student-${student.id}`}>
                   <TableCell className="font-mono text-sm" data-testid={`text-studentid-${student.id}`}>{student.studentId}</TableCell>
                   <TableCell className="font-medium" data-testid={`text-name-${student.id}`}>{student.name}</TableCell>
                   <TableCell>{student.class}</TableCell>
                   <TableCell className="text-muted-foreground">{student.contact || '—'}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Badge variant="outline">{borrowedCount}</Badge>
+                      {overdueCount > 0 && (
+                        <Badge variant="destructive" className="ml-2">
+                          {overdueCount} overdue
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     {borrowedCount > 0 ? (
                       <Badge variant="outline" className="text-xs">{borrowedCount}</Badge>

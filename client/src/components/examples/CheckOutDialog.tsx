@@ -11,9 +11,6 @@ export default function CheckOutDialogExample() {
       <CheckOutDialog 
         open={open} 
         onOpenChange={setOpen}
-        onConfirm={(bookId, studentId, dueDate) => {
-          console.log('Checkout:', { bookId, studentId, dueDate });
-        }}
       />
     </div>
   );

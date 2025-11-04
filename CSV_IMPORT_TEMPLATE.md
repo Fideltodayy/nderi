@@ -7,29 +7,30 @@ Your CSV file should contain the following columns in this exact order:
 | Column Name | Description | Example |
 |------------|-------------|---------|
 | **Title** | Book title | Strange Happenings |
-| **Category** | Subject category | ENGLISH CLASS READERS |
+| **Category** | Book category | ENGLISH CLASS READERS |
+| **Subject** | Subject area | English |
 | **Grade** | Grade level | Grade 7 |
-| **Quantities Purchased** | Number of purchased copies | 15 |
-| **Donated** | Number of donated copies | 0 |
+| **Quantity** | Total number of copies | 15 |
+| **Price** | Book price (KSH) | 850 |
 
 ## Sample CSV File
 
 ```csv
-Title,Category,Grade,Quantities Purchased,Donated
-Strange Happenings,ENGLISH CLASS READERS,Grade 7,15,0
-The last laugh,ENGLISH CLASS READERS,Grade 7,15,0
-The Good Earth,ENGLISH CLASS READERS,Grade 8,15,0
-Bridges without rivers,ENGLISH CLASS READERS,Grade 8,15,0
-The hidden package,ENGLISH CLASS READERS,Grade 9,15,0
-Understanding oral literature by Austin Bukenya,ORAL LITERATURE,Grade 8,0,8
-Oxford Head start oral literature and skills,ORAL LITERATURE,Grade 7,8,0
-Master English 7,ENGLISH,Grade 7,8,0
-Master English 8,ENGLISH,Grade 8,8,0
-Master English 9,ENGLISH,Grade 9,8,0
-Poetry Simplified: A guide to oral and literacy skills,POETRY,Grade 7,8,0
-A poetry course for KCSE by Paul Robin,POETRY,Grade 9,8,0
-Miradi na Mtihani,KISWAHILI,Grade 7,8,0
-Maana Mapya,KISWAHILI,Grade 8,8,0
+Title,Category,Subject,Grade,Quantity,Price
+Strange Happenings,ENGLISH CLASS READERS,English,Grade 7,15,850
+The last laugh,ENGLISH CLASS READERS,English,Grade 7,15,850
+The Good Earth,ENGLISH CLASS READERS,English,Grade 8,15,850
+Bridges without rivers,ENGLISH CLASS READERS,English,Grade 8,15,850
+The hidden package,ENGLISH CLASS READERS,English,Grade 9,15,850
+Understanding oral literature by Austin Bukenya,ORAL LITERATURE,Literature,Grade 8,8,950
+Oxford Head start oral literature and skills,ORAL LITERATURE,Literature,Grade 7,8,950
+Master English 7,ENGLISH,English,Grade 7,8,750
+Master English 8,ENGLISH,English,Grade 8,8,750
+Master English 9,ENGLISH,English,Grade 9,8,750
+Poetry Simplified: A guide to oral and literacy skills,POETRY,Literature,Grade 7,8,850
+A poetry course for KCSE by Paul Robin,POETRY,Literature,Grade 9,8,850
+Miradi na Mtihani,KISWAHILI,Kiswahili,Grade 7,8,750
+Maana Mapya,KISWAHILI,Kiswahili,Grade 8,8,750
 ```
 
 ## Common Categories

@@ -83,12 +83,12 @@ export default function CSVImportDialog({ open, onOpenChange, onImport }: CSVImp
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                 <li><span className="font-mono text-xs bg-background px-1 rounded">Title</span> - Book title</li>
                 <li><span className="font-mono text-xs bg-background px-1 rounded">Category</span> - Subject category (e.g., ENGLISH CLASS READERS, ORAL LITERATURE, ENGLISH, POETRY, KISWAHILI)</li>
-                <li><span className="font-mono text-xs bg-background px-1 rounded">Grade</span> - Grade level (e.g., Grade 7, Grade 8, Grade 9)</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Grade</span> - Grade level(s): e.g., "Grade 1" or "1,2,3"</li>
                 <li><span className="font-mono text-xs bg-background px-1 rounded">Quantities Purchased</span> - Number of purchased copies</li>
                 <li><span className="font-mono text-xs bg-background px-1 rounded">Donated</span> - Number of donated copies</li>
               </ul>
               <p className="text-muted-foreground mt-2">
-                Example row: "Strange Happenings, ENGLISH CLASS READERS, Grade 7, 15, 0"
+                Example row: "Strange Happenings, ENGLISH CLASS READERS, 1, 15, 0"
               </p>
             </div>
           </div>

@@ -25,11 +25,12 @@ interface CheckOutDialogProps {
 
 export default function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [barcode, setBarcode] = useState("");
+  const [bookSearch, setBookSearch] = useState("");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [studentSearch, setStudentSearch] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [dueDate, setDueDate] = useState("");
+  const [showBookResults, setShowBookResults] = useState(false);
   
   const { data: books = [] } = useBooks();
   const { data: students = [] } = useStudents();
@@ -41,24 +42,29 @@ export default function CheckOutDialog({ open, onOpenChange }: CheckOutDialogPro
     return addDays(new Date(), 14).toISOString().split('T')[0];
   }, []);
 
-  const handleBarcodeSubmit = () => {
-    const book = books.find(b => b.barcode === barcode);
-    if (book) {
-      if (book.availableQuantity > 0) {
-        setSelectedBook(book);
-        setDueDate(defaultDueDate);
-        setStep(2);
-      } else {
-        toast({
-          title: "Book Unavailable",
-          description: "All copies of this book are currently checked out",
-          variant: "destructive",
-        });
-      }
+  const filteredBooks = useMemo(() => {
+    if (!bookSearch) return [];
+    const search = bookSearch.toLowerCase();
+    return books
+      .filter(b => 
+        b.barcode.toLowerCase().includes(search) ||
+        b.title.toLowerCase().includes(search)
+      )
+      .filter(b => b.availableQuantity > 0)
+      .slice(0, 5);
+  }, [books, bookSearch]);
+
+  const handleBookSelect = (book: Book) => {
+    if (book.availableQuantity > 0) {
+      setSelectedBook(book);
+      setBookSearch(book.title);
+      setShowBookResults(false);
+      setDueDate(defaultDueDate);
+      setStep(2);
     } else {
       toast({
-        title: "Book Not Found",
-        description: `No book found with barcode: ${barcode}`,
+        title: "Book Unavailable",
+        description: "All copies of this book are currently checked out",
         variant: "destructive",
       });
     }
@@ -107,11 +113,12 @@ export default function CheckOutDialog({ open, onOpenChange }: CheckOutDialogPro
 
   const handleClose = () => {
     setStep(1);
-    setBarcode("");
+    setBookSearch("");
     setSelectedBook(null);
     setStudentSearch("");
     setSelectedStudent(null);
     setDueDate("");
+    setShowBookResults(false);
     onOpenChange(false);
   };
 
@@ -129,25 +136,52 @@ export default function CheckOutDialog({ open, onOpenChange }: CheckOutDialogPro
           {step === 1 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="barcode">Book Barcode</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input
-                      id="barcode"
-                      placeholder="Scan or type barcode..."
-                      className="pl-10 text-lg"
-                      value={barcode}
-                      onChange={(e) => setBarcode(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleBarcodeSubmit()}
-                      autoFocus
-                      data-testid="input-barcode"
-                    />
-                  </div>
-                  <Button onClick={handleBarcodeSubmit} data-testid="button-lookup-book">
-                    Lookup
-                  </Button>
+                <Label htmlFor="bookSearch">Search Book</Label>
+                <div className="relative">
+                  <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    id="bookSearch"
+                    placeholder="Search by title or barcode..."
+                    className="pl-10 text-lg"
+                    value={bookSearch}
+                    onChange={(e) => {
+                      setBookSearch(e.target.value);
+                      setShowBookResults(true);
+                      setSelectedBook(null);
+                    }}
+                    onFocus={() => setShowBookResults(true)}
+                    autoFocus
+                    data-testid="input-book-search"
+                  />
                 </div>
+                {showBookResults && filteredBooks.length > 0 && (
+                  <div className="border rounded-md max-h-48 overflow-y-auto">
+                    {filteredBooks.map(book => {
+                      const isSelected = selectedBook && selectedBook.id === book.id;
+                      return (
+                        <button
+                          key={book.id}
+                          onClick={() => handleBookSelect(book)}
+                          className={`w-full text-left px-4 py-2 hover:bg-muted/40 transition-colors
+                            ${isSelected ? 'bg-muted border-l-4 border-primary shadow-sm' : ''}`}
+                          data-testid={`book-option-${book.id}`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className={`font-medium ${isSelected ? 'text-primary' : ''}`}>{book.title}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {book.barcode} • {book.subject || book.category}
+                              </p>
+                            </div>
+                            <span className="text-sm text-green-600 font-medium">
+                              {book.availableQuantity} available
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {selectedBook && (
@@ -155,8 +189,11 @@ export default function CheckOutDialog({ open, onOpenChange }: CheckOutDialogPro
                   <div className="space-y-2">
                     <h4 className="font-semibold">{selectedBook.title}</h4>
                     <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Barcode: {selectedBook.barcode}</p>
                       <p>Category: {selectedBook.category}</p>
-                      <p>Available: {selectedBook.availableQuantity} of {selectedBook.totalQuantity}</p>
+                      <p>Subject: {selectedBook.subject}</p>
+                      <p>Available: {selectedBook.availableQuantity} of {selectedBook.quantity}</p>
+                      <p>Price: KSH {(selectedBook.price || 0).toFixed(2)}</p>
                     </div>
                   </div>
                 </Card>
@@ -184,21 +221,25 @@ export default function CheckOutDialog({ open, onOpenChange }: CheckOutDialogPro
                     data-testid="input-student-search"
                   />
                 </div>
-                {filteredStudents.length > 0 && !selectedStudent && (
+                {filteredStudents.length > 0 && (
                   <div className="border rounded-md max-h-48 overflow-y-auto">
-                    {filteredStudents.map(student => (
-                      <button
-                        key={student.id}
-                        onClick={() => handleStudentSelect(student)}
-                        className="w-full text-left px-4 py-2 hover-elevate"
-                        data-testid={`student-option-${student.id}`}
-                      >
-                        <p className="font-medium">{student.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {student.studentId} • {student.class}
-                        </p>
-                      </button>
-                    ))}
+                    {filteredStudents.map(student => {
+                      const isSelected = selectedStudent && selectedStudent.id === student.id;
+                      return (
+                        <button
+                          key={student.id}
+                          onClick={() => handleStudentSelect(student)}
+                          className={`w-full text-left px-4 py-2 hover:bg-muted/40 transition-colors
+                            ${isSelected ? 'bg-muted border-l-4 border-primary shadow-sm' : ''}`}
+                          data-testid={`student-option-${student.id}`}
+                        >
+                          <p className={`font-medium ${isSelected ? 'text-primary' : ''}`}>{student.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {student.studentId} • {student.class}
+                          </p>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>

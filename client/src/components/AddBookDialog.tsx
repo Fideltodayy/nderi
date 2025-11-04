@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useAddBook, useBooks } from "@/hooks/useBooks";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AddBookDialogProps {
   open: boolean;
@@ -28,35 +29,58 @@ interface AddBookDialogProps {
 export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [grade, setGrade] = useState("");
-  const [purchased, setPurchased] = useState("");
-  const [donated, setDonated] = useState("");
+  const [subject, setSubject] = useState("");
+  const [selectedGrades, setSelectedGrades] = useState<number[]>([]);
+  const [barcode, setBarcode] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [price, setPrice] = useState("0");
 
   const { data: books = [] } = useBooks();
   const addBook = useAddBook();
   const { toast } = useToast();
 
+  const nextAutoBarcode = useMemo(() => {
+    const nums = books
+      .map((b) => parseInt(b.barcode, 10))
+      .filter((n) => Number.isFinite(n));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return String(max + 1).padStart(3, '0');
+  }, [books]);
+
+  // Initialize default barcode when dialog opens
+  useMemo(() => {
+    if (!barcode) setBarcode(nextAutoBarcode);
+  }, [nextAutoBarcode]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const quantityPurchased = parseInt(purchased) || 0;
-    const quantityDonated = parseInt(donated) || 0;
-    const total = quantityPurchased + quantityDonated;
+    const totalQuantity = parseInt(quantity) || 0;
+    const bookPrice = parseFloat(price) || 0;
 
-    const nextBarcode = books.length > 0 
-      ? Math.max(...books.map(b => parseInt(b.barcode) || 0)) + 1
-      : 1;
+    if (selectedGrades.length === 0) {
+      toast({ title: "Select grade(s)", description: "Choose at least one grade (1–12)", variant: "destructive" });
+      return;
+    }
+
+    if (!subject) {
+      toast({ title: "Enter subject", description: "Subject field is required", variant: "destructive" });
+      return;
+    }
+
+    const finalBarcode = barcode?.trim() || nextAutoBarcode;
 
     try {
       await addBook.mutateAsync({
-        barcode: String(nextBarcode).padStart(3, '0'),
+        barcode: finalBarcode,
         title,
         category,
-        grade,
-        quantityPurchased,
-        quantityDonated,
-        totalQuantity: total,
-        availableQuantity: total,
+        subject,
+        grades: selectedGrades.slice().sort((a,b)=>a-b),
+        quantity: totalQuantity,
+        availableQuantity: totalQuantity,
+        price: bookPrice,
+        status: 'active',
       });
 
       toast({
@@ -77,9 +101,11 @@ export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps
   const handleClose = () => {
     setTitle("");
     setCategory("");
-    setGrade("");
-    setPurchased("");
-    setDonated("");
+    setSubject("");
+    setSelectedGrades([]);
+    setBarcode("");
+    setQuantity("");
+    setPrice("0");
     onOpenChange(false);
   };
 
@@ -120,45 +146,74 @@ export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="grade">Grade</Label>
-              <Select value={grade} onValueChange={setGrade} required>
-                <SelectTrigger data-testid="select-book-grade">
-                  <SelectValue placeholder="Select grade" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Grade 7">Grade 7</SelectItem>
-                  <SelectItem value="Grade 8">Grade 8</SelectItem>
-                  <SelectItem value="Grade 9">Grade 9</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Grades</Label>
+              <div className="grid grid-cols-4 gap-2" data-testid="checkboxes-grades">
+                {Array.from({ length: 12 }, (_ , i) => i + 1).map((g) => (
+                  <label key={g} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={selectedGrades.includes(g)}
+                      onCheckedChange={(checked) => {
+                        setSelectedGrades((prev) =>
+                          checked ? [...prev, g] : prev.filter((x) => x !== g)
+                        );
+                      }}
+                    />
+                    <span>Grade {g}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="barcode">Barcode</Label>
+              <Input
+                id="barcode"
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                placeholder={nextAutoBarcode}
+                data-testid="input-book-barcode"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Input
+                id="subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="e.g., English, Mathematics, Kiswahili"
+                required
+                data-testid="input-book-subject"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="purchased">Quantities Purchased</Label>
+                <Label htmlFor="quantity">Quantity</Label>
                 <Input
-                  id="purchased"
+                  id="quantity"
                   type="number"
                   min="0"
-                  value={purchased}
-                  onChange={(e) => setPurchased(e.target.value)}
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
                   placeholder="0"
                   required
-                  data-testid="input-book-purchased"
+                  data-testid="input-book-quantity"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="donated">Donated</Label>
+                <Label htmlFor="price">Price (KSH)</Label>
                 <Input
-                  id="donated"
+                  id="price"
                   type="number"
                   min="0"
-                  value={donated}
-                  onChange={(e) => setDonated(e.target.value)}
-                  placeholder="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="0.00"
                   required
-                  data-testid="input-book-donated"
+                  data-testid="input-book-price"
                 />
               </div>
             </div>

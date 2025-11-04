@@ -13,33 +13,39 @@ export default function Catalog() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
+  const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   
   const { data: books = [], isLoading } = useBooks();
   const bulkAddBooks = useBulkAddBooks();
   const { toast } = useToast();
 
-  const grades = ['Grade 7', 'Grade 8', 'Grade 9'];
+  const grades = Array.from({ length: 12 }, (_ , i) => i + 1);
 
   const filteredBooks = useMemo(() => {
     return books.filter(book => {
+      const searchLower = searchQuery.toLowerCase();
       const matchesSearch = 
-        book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        book.barcode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        book.category.toLowerCase().includes(searchQuery.toLowerCase());
+        book.title.toLowerCase().includes(searchLower) ||
+        book.barcode.toLowerCase().includes(searchLower) ||
+        book.category.toLowerCase().includes(searchLower) ||
+        book.subject.toLowerCase().includes(searchLower);
       
-      const matchesGrade = !selectedGrade || book.grade === selectedGrade;
+      const matchesGrade = selectedGrade === null || (book.grades || []).includes(selectedGrade);
       
       return matchesSearch && matchesGrade;
     });
   }, [books, searchQuery, selectedGrade]);
 
   const booksByGrade = useMemo(() => {
-    return grades.map(grade => ({
-      grade,
-      books: filteredBooks.filter(book => book.grade === grade),
-      totalBooks: books.filter(book => book.grade === grade).reduce((sum, book) => sum + book.totalQuantity, 0),
-      available: books.filter(book => book.grade === grade).reduce((sum, book) => sum + book.availableQuantity, 0),
+    return grades.map((g) => ({
+      grade: g,
+      books: filteredBooks.filter((book) => (book.grades || []).includes(g)),
+      totalBooks: books
+        .filter((book) => (book.grades || []).includes(g))
+        .reduce((sum, book) => sum + (book.quantity || (book as any).totalQuantity || 0), 0),
+      available: books
+        .filter((book) => (book.grades || []).includes(g))
+        .reduce((sum, book) => sum + (book.availableQuantity || 0), 0),
     }));
   }, [books, filteredBooks, grades]);
 
@@ -50,19 +56,26 @@ export default function Catalog() {
         : 1;
 
       const newBooks = data.map((row, index) => {
-        const purchased = parseInt(row['Quantities Purchased']) || 0;
-        const donated = parseInt(row['Donated']) || 0;
-        const total = purchased + donated;
+        const quantity = parseInt(row['Quantity'] || '0');
+        const price = parseFloat(row['Price'] || '0');
+
+        // Parse grades: support "Grade X", "X", or "X;Y;Z"
+        const gradeCell = String(row['Grade'] || '').trim();
+        const grades: number[] = gradeCell
+          .split(/[;,]/)
+          .map((s: string) => parseInt(s.replace(/\D+/g, ''), 10))
+          .filter((n: number) => Number.isFinite(n) && n >= 1 && n <= 12);
 
         return {
           barcode: String(nextBarcode + index).padStart(3, '0'),
           title: row['Title'] || '',
           category: row['Category'] || '',
-          grade: row['Grade'] || '',
-          quantityPurchased: purchased,
-          quantityDonated: donated,
-          totalQuantity: total,
-          availableQuantity: total,
+          subject: row['Subject'] || row['Category'] || '',
+          grades,
+          quantity,
+          availableQuantity: quantity,
+          price,
+          status: 'active' as const,
         };
       });
 
@@ -140,15 +153,15 @@ export default function Catalog() {
           >
             All
           </Badge>
-          {grades.map(grade => (
+          {grades.map((g) => (
             <Badge 
-              key={grade}
-              variant={selectedGrade === grade ? 'default' : 'outline'} 
+              key={g}
+              variant={selectedGrade === g ? 'default' : 'outline'} 
               className="cursor-pointer hover-elevate"
-              onClick={() => setSelectedGrade(selectedGrade === grade ? null : grade)}
-              data-testid={`filter-${grade.toLowerCase().replace(' ', '-')}`}
+              onClick={() => setSelectedGrade(selectedGrade === g ? null : g)}
+              data-testid={`filter-grade-${g}`}
             >
-              {grade}
+              {`Grade ${g}`}
             </Badge>
           ))}
         </div>
@@ -164,7 +177,7 @@ export default function Catalog() {
             <div key={grade} className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-semibold">{grade}</h3>
+                  <h3 className="text-xl font-semibold">{`Grade ${grade}`}</h3>
                   <p className="text-sm text-muted-foreground">
                     {totalBooks} total books • {available} available
                   </p>

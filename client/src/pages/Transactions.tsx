@@ -4,16 +4,24 @@ import { Button } from "@/components/ui/button";
 import TransactionsTable from "@/components/TransactionsTable";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, X, Calendar, TrendingUp, BookOpen, RotateCcw, AlertCircle, Users } from "lucide-react";
+import { Search, X, TrendingUp, BookOpen, RotateCcw, AlertCircle, Users } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth, isAfter } from "date-fns";
 import { useTransactions } from "@/hooks/useTransactions";
 
-type DateRange = 'today' | 'week' | 'month' | 'all';
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+
+type DateRange = 'today' | 'week' | 'month' | 'all' | 'custom';
+type DateRangeValue = { from: Date; to: Date } | null;
 
 export default function Transactions() {
+  const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('all');
+  const [customDateRange, setCustomDateRange] = useState<DateRangeValue>(null);
   
   const { data: transactionsData = [], isLoading } = useTransactions();
 
@@ -41,18 +49,21 @@ export default function Transactions() {
     });
   }, [transactionsData]);
 
-  const getDateRangeStart = () => {
+  const getDateRange = () => {
     const now = new Date();
     switch (dateRange) {
       case 'today':
-        return startOfDay(now);
+        const today = startOfDay(now);
+        return { from: today, to: now };
       case 'week':
-        return startOfWeek(now);
+        return { from: startOfWeek(now), to: now };
       case 'month':
-        return startOfMonth(now);
+        return { from: startOfMonth(now), to: now };
+      case 'custom':
+        return customDateRange || { from: new Date(0), to: now };
       case 'all':
       default:
-        return new Date(0);
+        return { from: new Date(0), to: now };
     }
   };
 
@@ -64,18 +75,20 @@ export default function Transactions() {
       
       const matchesStatus = !statusFilter || transaction.status === statusFilter;
 
-      const rangeStart = getDateRangeStart();
-      const matchesDate = isAfter(transaction.date, rangeStart) || transaction.date.getTime() === rangeStart.getTime();
+      const { from, to } = getDateRange();
+      const transactionDate = transaction.date.getTime();
+      const matchesDate = transactionDate >= from.getTime() && transactionDate <= to.getTime();
 
       return matchesSearch && matchesStatus && matchesDate;
     });
   }, [searchQuery, statusFilter, dateRange, transactions]);
 
   const analytics = useMemo(() => {
-    const rangeStart = getDateRangeStart();
-    const inRangeTransactions = transactions.filter(t => 
-      isAfter(t.date, rangeStart) || t.date.getTime() === rangeStart.getTime()
-    );
+    const { from, to } = getDateRange();
+    const inRangeTransactions = transactions.filter(t => {
+      const date = t.date.getTime();
+      return date >= from.getTime() && date <= to.getTime();
+    });
 
     const checkouts = inRangeTransactions.filter(t => t.action === 'borrow').length;
     const returns = inRangeTransactions.filter(t => t.action === 'return').length;
@@ -112,11 +125,18 @@ export default function Transactions() {
     };
   }, [dateRange, transactions]);
 
-  const dateRangeLabel = {
-    today: 'Today',
-    week: 'This Week',
-    month: 'This Month',
-    all: 'All Time',
+  const getDateRangeLabel = () => {
+    if (dateRange === 'custom' && customDateRange) {
+      return `${format(customDateRange.from, 'MMM d')} - ${format(customDateRange.to, 'MMM d, yyyy')}`;
+    }
+    const labels = {
+      today: 'Today',
+      week: 'This Week',
+      month: 'This Month',
+      all: 'All Time',
+      custom: 'Custom Range',
+    };
+    return labels[dateRange];
   };
 
   return (
@@ -165,6 +185,36 @@ export default function Transactions() {
         >
           All Time
         </Badge>
+        
+  <Popover open={customPopoverOpen} onOpenChange={setCustomPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Badge 
+              variant={dateRange === 'custom' ? 'default' : 'outline'} 
+              className="cursor-pointer hover-elevate"
+              data-testid="period-custom"
+            >
+              <CalendarIcon className="w-3 h-3 mr-1" />
+              {dateRange === 'custom' && customDateRange 
+                ? `${format(customDateRange.from, 'MMM d')} - ${format(customDateRange.to, 'MMM d, yyyy')}`
+                : "Custom Range"}
+            </Badge>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={customDateRange as any}
+              onSelect={(range) => {
+                if (range?.from && range?.to) {
+                  setCustomDateRange(range as any);
+                  setDateRange('custom');
+                  setCustomPopoverOpen(false);
+                }
+              }}
+              numberOfMonths={2}
+              defaultMonth={new Date()}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -176,7 +226,7 @@ export default function Transactions() {
           <CardContent>
             <div className="text-2xl font-bold" data-testid="stat-checkouts">{analytics.checkouts}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {dateRangeLabel[dateRange]}
+              {getDateRangeLabel()}
             </p>
           </CardContent>
         </Card>
@@ -189,7 +239,7 @@ export default function Transactions() {
           <CardContent>
             <div className="text-2xl font-bold" data-testid="stat-returns">{analytics.returns}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {dateRangeLabel[dateRange]}
+              {getDateRangeLabel()}
             </p>
           </CardContent>
         </Card>
@@ -333,7 +383,7 @@ export default function Transactions() {
         </div>
       </div>
 
-      <TransactionsTable transactions={filteredTransactions} />
+  <TransactionsTable transactions={filteredTransactions as any} />
     </div>
   );
 }

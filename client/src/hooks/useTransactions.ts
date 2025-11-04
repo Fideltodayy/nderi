@@ -42,8 +42,9 @@ export function useAddTransaction() {
       } else if (transaction.action === 'return') {
         const book = await db.books.get(transaction.bookId);
         if (book) {
-          // Ensure we don't exceed total quantity
-          const newAvailability = Math.min(book.totalQuantity, book.availableQuantity + 1);
+          // Ensure we don't exceed total quantity (support legacy totalQuantity or new quantity field)
+          const total = book.quantity || (book as any).totalQuantity || 0;
+          const newAvailability = Math.min(total, (book.availableQuantity || 0) + 1);
           await db.books.update(transaction.bookId, {
             availableQuantity: newAvailability
           });

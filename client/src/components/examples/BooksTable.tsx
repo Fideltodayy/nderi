@@ -1,10 +1,11 @@
 import BooksTable from '../BooksTable';
+import { Book } from '@/lib/db';
 
 export default function BooksTableExample() {
-  const mockBooks = [
-    { id: 1, barcode: '001', title: 'Strange Happenings', category: 'ENGLISH CLASS READERS', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 12 },
-    { id: 2, barcode: '002', title: 'The last laugh', category: 'ENGLISH CLASS READERS', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 15 },
-    { id: 3, barcode: '003', title: 'Understanding oral literature by Austin Bukenya', category: 'ORAL LITERATURE', quantityPurchased: 0, quantityDonated: 8, totalQuantity: 8, availableQuantity: 0 },
+  const mockBooks: Book[] = [
+    { id: 1, barcode: '001', title: 'Strange Happenings', category: 'ENGLISH CLASS READERS', subject: 'English', grades: [7], quantity: 15, availableQuantity: 12, price: 850, status: 'active' },
+    { id: 2, barcode: '002', title: 'The last laugh', category: 'ENGLISH CLASS READERS', subject: 'English', grades: [7], quantity: 15, availableQuantity: 15, price: 850, status: 'active' },
+    { id: 3, barcode: '003', title: 'Understanding oral literature by Austin Bukenya', category: 'ORAL LITERATURE', subject: 'Literature', grades: [8], quantity: 8, availableQuantity: 0, price: 950, status: 'active' },
   ];
 
   return (

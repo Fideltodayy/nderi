@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { useBooks } from "@/hooks/useBooks";
 import { useTransactions } from "@/hooks/useTransactions";
 import { Button } from "@/components/ui/button";
-import { db } from "@/lib/db";
+import { db, Book, Student } from "@/lib/db";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -16,8 +16,8 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   const stats = useMemo(() => {
-    const totalBooks = books.reduce((sum, book) => sum + book.totalQuantity, 0);
-    const available = books.reduce((sum, book) => sum + book.availableQuantity, 0);
+  const totalBooks = books.reduce((sum, book) => sum + (book.quantity || (book as any).totalQuantity || 0), 0);
+    const available = books.reduce((sum, book) => sum + (book.availableQuantity || 0), 0);
     const borrowed = totalBooks - available;
     
     // Count overdue transactions
@@ -67,25 +67,25 @@ export default function Dashboard() {
         return;
       }
 
-      // Initialize sample data from CSV_IMPORT_TEMPLATE
-      const sampleBooks = [
-        { barcode: '001', title: 'Strange Happenings', category: 'ENGLISH CLASS READERS', grade: 'Grade 7', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 15 },
-        { barcode: '002', title: 'The last laugh', category: 'ENGLISH CLASS READERS', grade: 'Grade 7', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 15 },
-        { barcode: '003', title: 'The Good Earth', category: 'ENGLISH CLASS READERS', grade: 'Grade 8', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 15 },
-        { barcode: '004', title: 'Bridges without rivers', category: 'ENGLISH CLASS READERS', grade: 'Grade 8', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 15 },
-        { barcode: '005', title: 'The hidden package', category: 'ENGLISH CLASS READERS', grade: 'Grade 9', quantityPurchased: 15, quantityDonated: 0, totalQuantity: 15, availableQuantity: 15 },
-        { barcode: '006', title: 'Understanding oral literature by Austin Bukenya', category: 'ORAL LITERATURE', grade: 'Grade 8', quantityPurchased: 0, quantityDonated: 8, totalQuantity: 8, availableQuantity: 8 },
-        { barcode: '007', title: 'Oxford Head start oral literature and skills', category: 'ORAL LITERATURE', grade: 'Grade 7', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-        { barcode: '008', title: 'Master English 7', category: 'ENGLISH', grade: 'Grade 7', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-        { barcode: '009', title: 'Master English 8', category: 'ENGLISH', grade: 'Grade 8', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-        { barcode: '010', title: 'Master English 9', category: 'ENGLISH', grade: 'Grade 9', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-        { barcode: '011', title: 'Poetry Simplified: A guide to oral and literacy skills', category: 'POETRY', grade: 'Grade 7', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-        { barcode: '012', title: 'A poetry course for KCSE by Paul Robin', category: 'POETRY', grade: 'Grade 9', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-        { barcode: '013', title: 'Miradi na Mtihani', category: 'KISWAHILI', grade: 'Grade 7', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
-        { barcode: '014', title: 'Maana Mapya', category: 'KISWAHILI', grade: 'Grade 8', quantityPurchased: 8, quantityDonated: 0, totalQuantity: 8, availableQuantity: 8 },
+  // Initialize sample data from CSV_IMPORT_TEMPLATE
+  const sampleBooks: Omit<Book, 'id'>[] = [
+        { barcode: '001', title: 'Strange Happenings', category: 'ENGLISH CLASS READERS', subject: 'English', grades: [7], quantity: 15, availableQuantity: 15, price: 850, status: 'active' },
+        { barcode: '002', title: 'The last laugh', category: 'ENGLISH CLASS READERS', subject: 'English', grades: [7], quantity: 15, availableQuantity: 15, price: 850, status: 'active' },
+        { barcode: '003', title: 'The Good Earth', category: 'ENGLISH CLASS READERS', subject: 'English', grades: [8], quantity: 15, availableQuantity: 15, price: 850, status: 'active' },
+        { barcode: '004', title: 'Bridges without rivers', category: 'ENGLISH CLASS READERS', subject: 'English', grades: [8], quantity: 15, availableQuantity: 15, price: 850, status: 'active' },
+        { barcode: '005', title: 'The hidden package', category: 'ENGLISH CLASS READERS', subject: 'English', grades: [9], quantity: 15, availableQuantity: 15, price: 850, status: 'active' },
+        { barcode: '006', title: 'Understanding oral literature by Austin Bukenya', category: 'ORAL LITERATURE', subject: 'Literature', grades: [8], quantity: 8, availableQuantity: 8, price: 950, status: 'active' },
+        { barcode: '007', title: 'Oxford Head start oral literature and skills', category: 'ORAL LITERATURE', subject: 'Literature', grades: [7], quantity: 8, availableQuantity: 8, price: 950, status: 'active' },
+        { barcode: '008', title: 'Master English 7', category: 'ENGLISH', subject: 'English', grades: [7], quantity: 8, availableQuantity: 8, price: 750, status: 'active' },
+        { barcode: '009', title: 'Master English 8', category: 'ENGLISH', subject: 'English', grades: [8], quantity: 8, availableQuantity: 8, price: 750, status: 'active' },
+        { barcode: '010', title: 'Master English 9', category: 'ENGLISH', subject: 'English', grades: [9], quantity: 8, availableQuantity: 8, price: 750, status: 'active' },
+        { barcode: '011', title: 'Poetry Simplified: A guide to oral and literacy skills', category: 'POETRY', subject: 'Literature', grades: [7], quantity: 8, availableQuantity: 8, price: 850, status: 'active' },
+        { barcode: '012', title: 'A poetry course for KCSE by Paul Robin', category: 'POETRY', subject: 'Literature', grades: [9], quantity: 8, availableQuantity: 8, price: 850, status: 'active' },
+        { barcode: '013', title: 'Miradi na Mtihani', category: 'KISWAHILI', subject: 'Kiswahili', grades: [7], quantity: 8, availableQuantity: 8, price: 750, status: 'active' },
+        { barcode: '014', title: 'Maana Mapya', category: 'KISWAHILI', subject: 'Kiswahili', grades: [8], quantity: 8, availableQuantity: 8, price: 750, status: 'active' },
       ];
 
-      const sampleStudents = [
+  const sampleStudents: Omit<Student, 'id'>[] = [
         { studentId: 'S001', name: 'John Doe', class: 'Grade 7', contact: '0712345678' },
         { studentId: 'S002', name: 'Jane Smith', class: 'Grade 8', contact: '0723456789' },
         { studentId: 'S003', name: 'Bob Wilson', class: 'Grade 7', contact: '0734567890' },
@@ -192,7 +192,7 @@ export default function Dashboard() {
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
               {recentTransactions.length > 0 ? (
-                <TransactionsTable transactions={recentTransactions} />
+                <TransactionsTable transactions={recentTransactions as any} />
               ) : (
                 <p className="text-sm text-muted-foreground">No transactions yet</p>
               )}

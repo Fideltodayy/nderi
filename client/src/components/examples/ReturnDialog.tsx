@@ -11,9 +11,6 @@ export default function ReturnDialogExample() {
       <ReturnDialog 
         open={open} 
         onOpenChange={setOpen}
-        onConfirm={(transactionId) => {
-          console.log('Return confirmed:', transactionId);
-        }}
       />
     </div>
   );

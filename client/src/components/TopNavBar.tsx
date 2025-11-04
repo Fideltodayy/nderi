@@ -1,22 +1,14 @@
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, BookPlus, CornerDownLeft, Moon, Sun } from "lucide-react";
+import { BookPlus, CornerDownLeft, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 
 interface TopNavBarProps {
-  onSearch?: (query: string) => void;
   onCheckOut?: () => void;
   onReturn?: () => void;
 }
 
-export default function TopNavBar({ onSearch, onCheckOut, onReturn }: TopNavBarProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+export default function TopNavBar({ onCheckOut, onReturn }: TopNavBarProps) {
   const [isDark, setIsDark] = useState(false);
-
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    onSearch?.(value);
-  };
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -27,19 +19,7 @@ export default function TopNavBar({ onSearch, onCheckOut, onReturn }: TopNavBarP
     <div className="border-b bg-background">
       <div className="flex items-center justify-between p-4 gap-4">
         <div className="flex items-center gap-6 flex-1">
-          <h1 className="text-xl font-semibold whitespace-nowrap">Library Management</h1>
-          
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              type="search"
-              placeholder="Search books, students..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              data-testid="input-global-search"
-            />
-          </div>
+          <h1 className="text-xl font-semibold whitespace-nowrap">Nderi Library Management System</h1>
         </div>
 
         <div className="flex items-center gap-2">
