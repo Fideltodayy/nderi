@@ -11,7 +11,8 @@ import Dashboard from "@/pages/Dashboard";
 import Catalog from "@/pages/Catalog";
 import Students from "@/pages/Students";
 import Transactions from "@/pages/Transactions";
-import { LayoutDashboard, BookOpen, Users, History } from "lucide-react";
+import { LayoutDashboard, BookOpen, Users, History, Settings } from "lucide-react";
+import SettingsPage from "@/pages/Settings";
 
 interface RouterProps {
   onCheckOut: () => void;
@@ -26,6 +27,7 @@ function Router({ onCheckOut, onReturn }: RouterProps) {
     { path: "/catalog", label: "Catalog", icon: BookOpen },
     { path: "/students", label: "Students", icon: Users },
     { path: "/transactions", label: "Transactions", icon: History },
+    { path: "/settings", label: "Settings", icon: Settings },
   ];
 
   return (
@@ -63,6 +65,7 @@ function Router({ onCheckOut, onReturn }: RouterProps) {
           <Route path="/catalog" component={Catalog} />
           <Route path="/students" component={Students} />
           <Route path="/transactions" component={Transactions} />
+          <Route path="/settings" component={SettingsPage} />
           <Route>
             <div className="text-center py-12">
               <h2 className="text-2xl font-bold mb-2">Page Not Found</h2>

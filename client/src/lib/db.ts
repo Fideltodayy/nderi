@@ -59,12 +59,20 @@ export interface AuditLog {
   notes?: string;
 }
 
+export interface Taxonomy {
+  id?: number;
+  type: 'category' | 'subject';
+  name: string;
+  createdAt: Date;
+}
+
 export class LibraryDatabase extends Dexie {
   books!: Table<Book, number>;
   students!: Table<Student, number>;
   transactions!: Table<Transaction, number>;
   badDebts!: Table<BadDebt, number>;
   auditLogs!: Table<AuditLog, number>;
+  taxonomy!: Table<Taxonomy, number>;
 
   constructor() {
     super('LibraryDB');
@@ -120,6 +128,46 @@ export class LibraryDatabase extends Dexie {
             delete b.grade;
           }
         });
+      });
+
+    // v4: Add taxonomy table for managing categories and subjects
+    this.version(4)
+      .stores({
+        books: '++id, barcode, title, category, subject, *grades, status',
+        students: '++id, studentId, name, class',
+        transactions: '++id, bookId, studentId, action, date, status',
+        badDebts: '++id, transactionId, bookId, studentId, status, type',
+        auditLogs: '++id, timestamp, action, resourceType, resourceId, userId, riskLevel',
+        taxonomy: '++id, type, name, createdAt'
+      })
+      .upgrade(async (tx) => {
+        // Extract unique categories and subjects from existing books and populate taxonomy
+        const books = await tx.table('books').toArray();
+        const categories = new Set<string>();
+        const subjects = new Set<string>();
+        
+        books.forEach(book => {
+          if (book.category) categories.add(book.category);
+          if (book.subject) subjects.add(book.subject);
+        });
+        
+        // Add categories to taxonomy
+        for (const cat of categories) {
+          await tx.table('taxonomy').add({
+            type: 'category',
+            name: cat,
+            createdAt: new Date()
+          });
+        }
+        
+        // Add subjects to taxonomy
+        for (const subj of subjects) {
+          await tx.table('taxonomy').add({
+            type: 'subject',
+            name: subj,
+            createdAt: new Date()
+          });
+        }
       });
   }
 }

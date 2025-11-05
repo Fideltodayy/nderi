@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import StudentsTable from "@/components/StudentsTable";
 import AddStudentDialog from "@/components/AddStudentDialog";
+import EditStudentDialog from "@/components/EditStudentDialog";
 import StudentCSVImportDialog from "@/components/StudentCSVImportDialog";
 import { Search, Plus } from "lucide-react";
 import { useStudents, useAddStudent } from "@/hooks/useStudents";
@@ -17,7 +18,9 @@ export default function Students() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
   
   const { data: students = [], isLoading } = useStudents();
   const { data: transactionsData = [] } = useTransactions();
@@ -175,8 +178,14 @@ export default function Students() {
         students={filteredStudents}
         borrowedCounts={borrowedCounts}
         overdueCounts={overdueCounts}
-        onEdit={(student) => console.log('Edit student:', student)}
+        onEdit={(student) => {
+          setStudentToEdit(student);
+          setShowEditDialog(true);
+        }}
         onView={setSelectedStudent}
+        onDelete={(student) => {
+          // Student deleted - table will refresh automatically via query invalidation
+        }}
       />
 
       <AddStudentDialog
@@ -188,6 +197,15 @@ export default function Students() {
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
         onImport={handleBulkImport}
+      />
+
+      <EditStudentDialog
+        student={studentToEdit}
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open);
+          if (!open) setStudentToEdit(null);
+        }}
       />
 
       <StudentProfileDialog

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -8,8 +9,20 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Eye } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Edit, Eye, Trash2 } from "lucide-react";
 import { Student } from "@/lib/db";
+import { useDeleteStudent } from "@/hooks/useStudents";
+import { useToast } from "@/hooks/use-toast";
 
 interface StudentsTableProps {
   students: Student[];
@@ -17,6 +30,7 @@ interface StudentsTableProps {
   overdueCounts?: Record<number, number>;
   onEdit?: (student: Student) => void;
   onView?: (student: Student) => void;
+  onDelete?: (student: Student) => void;
 }
 
 export default function StudentsTable({ 
@@ -24,8 +38,55 @@ export default function StudentsTable({
   borrowedCounts = {}, 
   overdueCounts = {},
   onEdit, 
-  onView 
+  onView,
+  onDelete
 }: StudentsTableProps) {
+  const ADMIN_PIN = '1234'; // Frontend PIN for sensitive operations
+  const deleteStudent = useDeleteStudent();
+  const { toast } = useToast();
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [pendingStudent, setPendingStudent] = useState<Student | null>(null);
+  const [pendingOperation, setPendingOperation] = useState<'edit' | 'delete' | null>(null);
+  const [pinError, setPinError] = useState<string | null>(null);
+
+  const openPinModal = (student: Student, operation: 'edit' | 'delete') => {
+    setPendingStudent(student);
+    setPendingOperation(operation);
+    setPinValue('');
+    setPinError(null);
+    setShowPinModal(true);
+  };
+
+  const handleConfirmOperation = async () => {
+    if (pinValue !== ADMIN_PIN) {
+      setPinError('Invalid PIN');
+      return;
+    }
+
+    if (!pendingStudent?.id) return;
+
+    try {
+      if (pendingOperation === 'delete') {
+        await deleteStudent.mutateAsync(pendingStudent.id);
+        toast({ 
+          title: 'Student Deleted', 
+          description: `${pendingStudent.name} has been removed from the system` 
+        });
+        onDelete?.(pendingStudent);
+      } else if (pendingOperation === 'edit') {
+        onEdit?.(pendingStudent);
+      }
+      setShowPinModal(false);
+    } catch (err) {
+      toast({ 
+        title: `${pendingOperation === 'delete' ? 'Delete' : 'Edit'} Failed`, 
+        description: `Could not ${pendingOperation} the student`, 
+        variant: 'destructive' 
+      });
+    }
+  };
+
   return (
     <div className="border rounded-md">
       <Table>
@@ -79,7 +140,6 @@ export default function StudentsTable({
                         variant="ghost" 
                         size="icon"
                         onClick={() => {
-                          console.log('View student:', student.name);
                           onView?.(student);
                         }}
                         data-testid={`button-view-${student.id}`}
@@ -89,13 +149,18 @@ export default function StudentsTable({
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        onClick={() => {
-                          console.log('Edit student:', student.name);
-                          onEdit?.(student);
-                        }}
+                        onClick={() => openPinModal(student, 'edit')}
                         data-testid={`button-edit-${student.id}`}
                       >
                         <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openPinModal(student, 'delete')}
+                        data-testid={`button-delete-${student.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
                       </Button>
                     </div>
                   </TableCell>
@@ -105,6 +170,48 @@ export default function StudentsTable({
           )}
         </TableBody>
       </Table>
+
+      {/* PIN confirmation modal for protected operations */}
+      <Dialog open={showPinModal} onOpenChange={() => setShowPinModal(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm {pendingOperation === 'delete' ? 'Deletion' : 'Edit'}</DialogTitle>
+            <DialogDescription>
+              {pendingOperation === 'delete' 
+                ? `Are you sure you want to delete ${pendingStudent?.name}? This action cannot be undone.`
+                : `Enter PIN to edit ${pendingStudent?.name}'s information.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="pin">Enter Admin PIN</Label>
+              <Input
+                id="pin"
+                type="password"
+                value={pinValue}
+                onChange={(e) => {
+                  setPinValue(e.target.value);
+                  setPinError(null);
+                }}
+                placeholder="Enter PIN"
+                onKeyDown={(e) => e.key === 'Enter' && handleConfirmOperation()}
+                autoFocus
+              />
+              {pinError && (
+                <p className="text-sm text-destructive">{pinError}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPinModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmOperation}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

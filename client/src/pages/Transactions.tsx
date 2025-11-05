@@ -25,6 +25,14 @@ export default function Transactions() {
   
   const { data: transactionsData = [], isLoading } = useTransactions();
 
+  // Handle date range selection - ensure popover closes when date range is changed
+  const handleDateRangeChange = (newRange: DateRange) => {
+    setDateRange(newRange);
+    if (newRange !== 'custom') {
+      setCustomPopoverOpen(false);
+    }
+  };
+
   const transactions = useMemo(() => {
     // Check for overdue items
     const now = new Date();
@@ -60,7 +68,10 @@ export default function Transactions() {
       case 'month':
         return { from: startOfMonth(now), to: now };
       case 'custom':
-        return customDateRange || { from: new Date(0), to: now };
+        if (customDateRange?.from && customDateRange?.to) {
+          return customDateRange;
+        }
+        return { from: new Date(0), to: now };
       case 'all':
       default:
         return { from: new Date(0), to: now };
@@ -126,8 +137,8 @@ export default function Transactions() {
   }, [dateRange, transactions]);
 
   const getDateRangeLabel = () => {
-    if (dateRange === 'custom' && customDateRange) {
-      return `${format(customDateRange.from, 'MMM d')} - ${format(customDateRange.to, 'MMM d, yyyy')}`;
+    if (dateRange === 'custom' && customDateRange?.from && customDateRange?.to) {
+      return `${format(customDateRange.from, 'MMM d, yyyy')} - ${format(customDateRange.to, 'MMM d, yyyy')}`;
     }
     const labels = {
       today: 'Today',
@@ -153,61 +164,74 @@ export default function Transactions() {
         <Badge 
           variant={dateRange === 'today' ? 'default' : 'outline'} 
           className="cursor-pointer hover-elevate"
-          onClick={() => setDateRange('today')}
+          onClick={() => handleDateRangeChange('today')}
           data-testid="period-today"
         >
-          <Calendar className="w-3 h-3 mr-1" />
+          <CalendarIcon className="w-3 h-3 mr-1" />
           Today
         </Badge>
         <Badge 
           variant={dateRange === 'week' ? 'default' : 'outline'} 
           className="cursor-pointer hover-elevate"
-          onClick={() => setDateRange('week')}
+          onClick={() => handleDateRangeChange('week')}
           data-testid="period-week"
         >
-          <Calendar className="w-3 h-3 mr-1" />
+          <CalendarIcon className="w-3 h-3 mr-1" />
           This Week
         </Badge>
         <Badge 
           variant={dateRange === 'month' ? 'default' : 'outline'} 
           className="cursor-pointer hover-elevate"
-          onClick={() => setDateRange('month')}
+          onClick={() => handleDateRangeChange('month')}
           data-testid="period-month"
         >
-          <Calendar className="w-3 h-3 mr-1" />
+          <CalendarIcon className="w-3 h-3 mr-1" />
           This Month
         </Badge>
         <Badge 
           variant={dateRange === 'all' ? 'default' : 'outline'} 
           className="cursor-pointer hover-elevate"
-          onClick={() => setDateRange('all')}
+          onClick={() => handleDateRangeChange('all')}
           data-testid="period-all"
         >
           All Time
         </Badge>
         
-  <Popover open={customPopoverOpen} onOpenChange={setCustomPopoverOpen}>
+        <Popover open={customPopoverOpen} onOpenChange={setCustomPopoverOpen}>
           <PopoverTrigger asChild>
-            <Badge 
-              variant={dateRange === 'custom' ? 'default' : 'outline'} 
-              className="cursor-pointer hover-elevate"
+            <button
+              type="button"
+              className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 whitespace-nowrap hover-elevate cursor-pointer ${
+                dateRange === 'custom' 
+                  ? 'border-transparent bg-primary text-primary-foreground shadow-xs' 
+                  : 'border [border-color:var(--badge-outline)] shadow-xs'
+              }`}
               data-testid="period-custom"
             >
               <CalendarIcon className="w-3 h-3 mr-1" />
-              {dateRange === 'custom' && customDateRange 
-                ? `${format(customDateRange.from, 'MMM d')} - ${format(customDateRange.to, 'MMM d, yyyy')}`
+              {dateRange === 'custom' && customDateRange?.from && customDateRange?.to
+                ? `${format(customDateRange.from, 'MMM d, yyyy')} - ${format(customDateRange.to, 'MMM d, yyyy')}`
                 : "Custom Range"}
-            </Badge>
+            </button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent className="w-auto p-0" align="start" side="bottom">
             <Calendar
               mode="range"
               selected={customDateRange as any}
               onSelect={(range) => {
                 if (range?.from && range?.to) {
-                  setCustomDateRange(range as any);
+                  setCustomDateRange({
+                    from: range.from,
+                    to: range.to
+                  });
                   setDateRange('custom');
                   setCustomPopoverOpen(false);
+                } else if (range?.from) {
+                  // Allow partial selection (start date selected, waiting for end date)
+                  setCustomDateRange({
+                    from: range.from,
+                    to: range.from
+                  });
                 }
               }}
               numberOfMonths={2}

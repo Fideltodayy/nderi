@@ -38,9 +38,9 @@ export default function CSVImportDialog({ open, onOpenChange, onImport }: CSVImp
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.name.endsWith('.csv') || droppedFile.name.endsWith('.xlsx'))) {
+    // Only support CSV files (PapaParse)
+    if (droppedFile && droppedFile.name.toLowerCase().endsWith('.csv')) {
       handleFileSelect(droppedFile);
     }
   };
@@ -68,9 +68,9 @@ export default function CSVImportDialog({ open, onOpenChange, onImport }: CSVImp
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto" data-testid="dialog-csv-import">
         <DialogHeader>
-          <DialogTitle>Import Books from CSV/Excel</DialogTitle>
+          <DialogTitle>Import Books from CSV</DialogTitle>
           <DialogDescription>
-            Upload a CSV or Excel file with book information
+            Upload a CSV file with book information
           </DialogDescription>
         </DialogHeader>
 
@@ -81,14 +81,17 @@ export default function CSVImportDialog({ open, onOpenChange, onImport }: CSVImp
               <p className="font-semibold">Required CSV Format:</p>
               <p className="text-muted-foreground">Your CSV file should contain the following columns:</p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li><span className="font-mono text-xs bg-background px-1 rounded">Title</span> - Book title</li>
-                <li><span className="font-mono text-xs bg-background px-1 rounded">Category</span> - Subject category (e.g., ENGLISH CLASS READERS, ORAL LITERATURE, ENGLISH, POETRY, KISWAHILI)</li>
-                <li><span className="font-mono text-xs bg-background px-1 rounded">Grade</span> - Grade level(s): e.g., "Grade 1" or "1,2,3"</li>
-                <li><span className="font-mono text-xs bg-background px-1 rounded">Quantities Purchased</span> - Number of purchased copies</li>
-                <li><span className="font-mono text-xs bg-background px-1 rounded">Donated</span> - Number of donated copies</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Tittle</span> or <span className="font-mono text-xs bg-background px-1 rounded">Title</span> - Book title</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Category - type</span> or <span className="font-mono text-xs bg-background px-1 rounded">Category</span> - Category type (e.g., Story Books, Text Books, Novels)</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Category - Subject</span> or <span className="font-mono text-xs bg-background px-1 rounded">Subject</span> - Subject (e.g., English, Kiswahili, Mathematics)</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Category - Grade</span> or <span className="font-mono text-xs bg-background px-1 rounded">Grade</span> - Grade level(s): "Grade 1", "1,2,3", "Multiple", or "All"</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Quantity</span> - Total number of copies</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Barcode</span> - Optional barcode (auto-generated if missing)</li>
+                <li><span className="font-mono text-xs bg-background px-1 rounded">Price</span> - Optional price per book (defaults to 0)</li>
               </ul>
               <p className="text-muted-foreground mt-2">
-                Example row: "Strange Happenings, ENGLISH CLASS READERS, 1, 15, 0"
+                <span className="font-semibold">Note:</span> Supports Google Sheets format with "Category - type", "Category - Subject", "Category - Grade" columns.
+                For multiple grades, use comma or semicolon separated values (e.g., "1,2,3" or "Grade 1;Grade 2").
               </p>
             </div>
           </div>
@@ -126,7 +129,7 @@ export default function CSVImportDialog({ open, onOpenChange, onImport }: CSVImp
               <input
                 id="file-input"
                 type="file"
-                accept=".csv,.xlsx"
+                accept=".csv"
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
               />

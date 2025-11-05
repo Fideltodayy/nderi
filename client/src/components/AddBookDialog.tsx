@@ -20,6 +20,7 @@ import {
 import { useAddBook, useBooks } from "@/hooks/useBooks";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useCategories, useSubjects, useAddTaxonomy } from "@/hooks/useTaxonomy";
 
 interface AddBookDialogProps {
   open: boolean;
@@ -30,6 +31,8 @@ export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [subject, setSubject] = useState("");
+  const [categoryMode, setCategoryMode] = useState<'select' | 'custom'>('select');
+  const [subjectMode, setSubjectMode] = useState<'select' | 'custom'>('select');
   const [selectedGrades, setSelectedGrades] = useState<number[]>([]);
   const [barcode, setBarcode] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -38,6 +41,9 @@ export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps
   const { data: books = [] } = useBooks();
   const addBook = useAddBook();
   const { toast } = useToast();
+  const { data: categoryOptions = [] } = useCategories();
+  const { data: subjectOptions = [] } = useSubjects();
+  const addTaxonomy = useAddTaxonomy();
 
   const nextAutoBarcode = useMemo(() => {
     const nums = books
@@ -68,14 +74,29 @@ export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps
       return;
     }
 
+    if (!category) {
+      toast({ title: "Enter category", description: "Category field is required", variant: "destructive" });
+      return;
+    }
+
     const finalBarcode = barcode?.trim() || nextAutoBarcode;
+    const finalCategory = category.trim();
+    const finalSubject = subject.trim();
 
     try {
+      // Add new category/subject to taxonomy if they don't exist
+      if (!categoryOptions.includes(finalCategory)) {
+        await addTaxonomy.mutateAsync({ type: 'category', name: finalCategory });
+      }
+      if (!subjectOptions.includes(finalSubject)) {
+        await addTaxonomy.mutateAsync({ type: 'subject', name: finalSubject });
+      }
+
       await addBook.mutateAsync({
         barcode: finalBarcode,
         title,
-        category,
-        subject,
+        category: finalCategory,
+        subject: finalSubject,
         grades: selectedGrades.slice().sort((a,b)=>a-b),
         quantity: totalQuantity,
         availableQuantity: totalQuantity,
@@ -102,6 +123,8 @@ export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps
     setTitle("");
     setCategory("");
     setSubject("");
+    setCategoryMode('select');
+    setSubjectMode('select');
     setSelectedGrades([]);
     setBarcode("");
     setQuantity("");
@@ -135,14 +158,38 @@ export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps
 
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Input
-                id="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g., ENGLISH CLASS READERS"
-                required
-                data-testid="input-book-category"
-              />
+              {categoryMode === 'select' ? (
+                <Select
+                  value={category || undefined}
+                  onValueChange={(v) => {
+                    if (v === '__custom__') {
+                      setCategory("");
+                      setCategoryMode('custom');
+                    } else {
+                      setCategory(v);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="category" data-testid="select-book-category">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                    <SelectItem value="__custom__">Add new…</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="category-custom"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Type a category"
+                  required
+                  data-testid="input-book-category"
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -177,14 +224,38 @@ export default function AddBookDialog({ open, onOpenChange }: AddBookDialogProps
 
             <div className="space-y-2">
               <Label htmlFor="subject">Subject</Label>
-              <Input
-                id="subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="e.g., English, Mathematics, Kiswahili"
-                required
-                data-testid="input-book-subject"
-              />
+              {subjectMode === 'select' ? (
+                <Select
+                  value={subject || undefined}
+                  onValueChange={(v) => {
+                    if (v === '__custom__') {
+                      setSubject("");
+                      setSubjectMode('custom');
+                    } else {
+                      setSubject(v);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="subject" data-testid="select-book-subject">
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjectOptions.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                    <SelectItem value="__custom__">Add new…</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="subject-custom"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Type a subject"
+                  required
+                  data-testid="input-book-subject"
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
